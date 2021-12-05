@@ -1,6 +1,3 @@
-use advent_of_code_2021::day1;
-use advent_of_code_2021::day2;
-use advent_of_code_2021::day3;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -34,9 +31,9 @@ fn main() -> Result<()> {
         clippy::match_overlapping_arm
     )]
     let (a, b): (String, Option<String>) = match opts.day {
-        1 => as_result(day1::main(&input)?),
-        2 => as_result(day2::main(&input)?),
-        3 => as_result(day3::main(&input)?),
+        1 => as_result(advent_of_code_2021::day1::main(&input)?),
+        2 => as_result(advent_of_code_2021::day2::main(&input)?),
+        3 => as_result(advent_of_code_2021::day3::main(&input)?),
         1..=25 => return Err(anyhow!("No implementation for this day yet")),
         day => return Err(anyhow!("Day {} is not a valid day for advent of code", day)),
     };
