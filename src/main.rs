@@ -35,6 +35,7 @@ fn main() -> Result<()> {
         2 => as_result(advent_of_code_2021::day2::main(&input)?),
         3 => as_result(advent_of_code_2021::day3::main(&input)?),
         5 => as_result(advent_of_code_2021::day5::main(&input)?),
+        6 => as_result(advent_of_code_2021::day6::main(&input)?),
         1..=25 => return Err(anyhow!("No implementation for this day yet")),
         day => return Err(anyhow!("Day {} is not a valid day for advent of code", day)),
     };
