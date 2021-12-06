@@ -5,12 +5,12 @@ type State = [usize; 9];
 
 pub fn simulation(mut state: State, num_iterations: usize) -> usize {
     for _ in 0..num_iterations {
-        let mut new_state: State = Default::default();
-        for i in 0..state.len() {
-            new_state[i.checked_sub(1).unwrap_or(6)] += state[i];
+        let num_births = state[0];
+        for i in 1..state.len() {
+            state[i - 1] = state[i];
         }
-        new_state[8] += state[0];
-        state = new_state;
+        state[6] += num_births;
+        state[8] = num_births;
     }
     state.into_iter().sum()
 }
