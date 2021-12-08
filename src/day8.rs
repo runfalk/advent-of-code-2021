@@ -3,18 +3,47 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Display {
-    patterns: Vec<u8>,
-    output: Vec<u8>,
+    patterns: Vec<Segments>,
+    output: Vec<Segments>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Segments(u8);
+
+impl Segments {
+    fn from_str(s: &str) -> Result<Self> {
+        let mut segments = 0;
+        for c in s.chars() {
+            segments |= match c {
+                'a' => 0b0000001,
+                'b' => 0b0000010,
+                'c' => 0b0000100,
+                'd' => 0b0001000,
+                'e' => 0b0010000,
+                'f' => 0b0100000,
+                'g' => 0b1000000,
+                c => return Err(anyhow!("Got unknown segment {}", c)),
+            }
+        }
+        Ok(Self(segments))
+    }
+
+    fn len(self) -> usize {
+        self.0.count_ones() as usize
+    }
+
+    fn contains(self, other: Self) -> bool {
+        (self.0 | other.0) == self.0
+    }
 }
 
 fn part_a(displays: &[Display]) -> usize {
     displays
         .iter()
         .flat_map(|d| d.output.iter())
-        .filter(|o| {
-            o.count_ones() == 2 || o.count_ones() == 3 || o.count_ones() == 4 || o.count_ones() == 7
-        })
+        .filter(|o| o.len() == 2 || o.len() == 3 || o.len() == 4 || o.len() == 7)
         .count()
 }
 
@@ -22,96 +51,61 @@ fn part_b(displays: &[Display]) -> Result<usize> {
     let mut sum = 0;
     for display in displays {
         let patterns = display.patterns.iter().copied();
-        let one = patterns
-            .clone()
-            .find(|s| s.count_ones() == 2)
-            .ok_or_else(|| anyhow!("Unable to find segments for one"))?;
-        let four = patterns
-            .clone()
-            .find(|s| s.count_ones() == 4)
-            .ok_or_else(|| anyhow!("Unable to find segments for four"))?;
-        let seven = patterns
-            .clone()
-            .find(|s| s.count_ones() == 3)
-            .ok_or_else(|| anyhow!("Unable to find segments for seven"))?;
-        let eight = patterns
-            .clone()
-            .find(|s| s.count_ones() == 7)
-            .ok_or_else(|| anyhow!("Unable to find segments for eight"))?;
+        let mut map = [Segments(0); 10];
 
-        let aeg = eight ^ four;
-        let two = patterns
-            .clone()
-            .find(|s| s.count_ones() == 5 && (aeg & s) == aeg)
-            .ok_or_else(|| anyhow!("Unable to find segments for two"))?;
-        let three = patterns
-            .clone()
-            .find(|s| s.count_ones() == 5 && (seven & s) == seven)
-            .ok_or_else(|| anyhow!("Unable to find segments for three"))?;
-        let five = patterns
-            .clone()
-            .find(|&s| s.count_ones() == 5 && s != two && s != three)
-            .ok_or_else(|| anyhow!("Unable to find segments for five"))?;
+        for pattern in patterns.clone() {
+            match pattern.len() {
+                2 => map[1] = pattern,
+                4 => map[4] = pattern,
+                3 => map[7] = pattern,
+                7 => map[8] = pattern,
+                _ => (),
+            }
+        }
 
-        let six = patterns
-            .clone()
-            .find(|&s| s.count_ones() == 6 && (s & one).count_ones() == 1)
-            .ok_or_else(|| anyhow!("Unable to find segments for six"))?;
-        let nine = patterns
-            .clone()
-            .find(|&s| s.count_ones() == 6 && (s ^ three).count_ones() == 1)
-            .ok_or_else(|| anyhow!("Unable to find segments for nine"))?;
-        let zero = patterns
-            .clone()
-            .find(|&s| s.count_ones() == 6 && ((six ^ nine) & s).count_ones() == 2)
-            .ok_or_else(|| anyhow!("Unable to find segments for zero"))?;
+        if map[1].len() == 0 || map[4].len() == 0 || map[7].len() == 0 || map[8].len() == 0 {
+            return Err(anyhow!("Couldn't find 1, 4, 7 and 8 in pattern"));
+        }
 
-        for (pow, &output) in display.output.iter().rev().enumerate() {
-            let digit = if output == zero {
-                0
-            } else if output == one {
-                1
-            } else if output == two {
-                2
-            } else if output == three {
-                3
-            } else if output == four {
-                4
-            } else if output == five {
-                5
-            } else if output == six {
-                6
-            } else if output == seven {
-                7
-            } else if output == eight {
-                8
-            } else if output == nine {
-                9
-            } else {
-                return Err(anyhow!("Unknown output"));
-            };
+        map[3] = patterns
+            .clone()
+            .find(|&p| p.len() == 5 && p.contains(map[7]))
+            .ok_or_else(|| anyhow!("Unable to find segments for 3"))?;
 
-            sum += 10usize.pow(pow as u32) * digit
+        map[6] = patterns
+            .clone()
+            .find(|&p| p.len() == 6 && !p.contains(map[1]))
+            .ok_or_else(|| anyhow!("Unable to find segments for 6"))?;
+        map[9] = patterns
+            .clone()
+            .find(|&p| p.len() == 6 && p.contains(map[3]))
+            .ok_or_else(|| anyhow!("Unable to find segments for 9"))?;
+        map[0] = patterns
+            .clone()
+            .find(|&p| p.len() == 6 && p != map[6] && p != map[9])
+            .ok_or_else(|| anyhow!("Unable to find segments for 0"))?;
+
+        map[5] = patterns
+            .clone()
+            .find(|&p| p.len() == 5 && map[6].contains(p))
+            .ok_or_else(|| anyhow!("Unable to find segments for 5"))?;
+        map[2] = patterns
+            .clone()
+            .find(|&p| p.len() == 5 && p != map[3] && p != map[5])
+            .ok_or_else(|| anyhow!("Unable to find segments for 2"))?;
+
+        // Use map to convert the output into a four digit number and add it to the total sum
+        for (pow, output) in display.output.iter().copied().rev().enumerate() {
+            for (digit, segments) in map.into_iter().enumerate() {
+                if segments != output {
+                    continue;
+                }
+                sum += 10usize.pow(pow as u32) * digit;
+                break;
+            }
         }
     }
     Ok(sum)
-}
-
-fn str_to_segments(s: &str) -> Result<u8> {
-    let mut segments = 0;
-    for c in s.chars() {
-        segments |= match c {
-            'a' => 0b0000001,
-            'b' => 0b0000010,
-            'c' => 0b0000100,
-            'd' => 0b0001000,
-            'e' => 0b0010000,
-            'f' => 0b0100000,
-            'g' => 0b1000000,
-            _ => return Err(anyhow!("Got unknown segment")),
-        }
-    }
-    Ok(segments)
 }
 
 pub fn main(path: &Path) -> Result<(usize, Option<usize>)> {
@@ -126,11 +120,11 @@ pub fn main(path: &Path) -> Result<(usize, Option<usize>)> {
             Ok(Display {
                 patterns: patterns_str
                     .split_whitespace()
-                    .map(str_to_segments)
+                    .map(Segments::from_str)
                     .collect::<Result<Vec<_>>>()?,
                 output: output_str
                     .split_whitespace()
-                    .map(str_to_segments)
+                    .map(Segments::from_str)
                     .collect::<Result<Vec<_>>>()?,
             })
         })
@@ -193,11 +187,11 @@ mod tests {
                 Ok(Display {
                     patterns: patterns_str
                         .split_whitespace()
-                        .map(str_to_segments)
+                        .map(Segments::from_str)
                         .collect::<Result<_>>()?,
                     output: output_str
                         .split_whitespace()
-                        .map(str_to_segments)
+                        .map(Segments::from_str)
                         .collect::<Result<_>>()?,
                 })
             })
