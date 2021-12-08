@@ -96,13 +96,11 @@ fn part_b(displays: &[Display]) -> Result<usize> {
 
         // Use map to convert the output into a four digit number and add it to the total sum
         for (pow, output) in display.output.iter().copied().rev().enumerate() {
-            for (digit, segments) in map.into_iter().enumerate() {
-                if segments != output {
-                    continue;
-                }
-                sum += 10usize.pow(pow as u32) * digit;
-                break;
-            }
+            let digit = map
+                .into_iter()
+                .position(|s| s == output)
+                .ok_or_else(|| anyhow!("Unable to decode digit"))?;
+            sum += 10usize.pow(pow as u32) * digit;
         }
     }
     Ok(sum)
