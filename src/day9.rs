@@ -51,13 +51,12 @@ fn part_ab(heightmap: &HashMap<Coordinate, usize>) -> (usize, usize) {
 
         while let Some(c) = queue.pop_front() {
             for n in c.iter_neighbors() {
-                if visited.contains(&n) {
+                // Ignore explored coordinates and points with height 9
+                if visited.contains(&n) || heightmap.get(&n).filter(|&nv| *nv < 9).is_none() {
                     continue;
                 }
-                if heightmap.get(&n).filter(|&nv| *nv < 9).is_some() {
-                    queue.push_back(n);
-                    visited.insert(n);
-                }
+                queue.push_back(n);
+                visited.insert(n);
             }
         }
         pool_sizes.push(visited.len());
