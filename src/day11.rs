@@ -28,22 +28,16 @@ fn tick<const W: usize, const H: usize>(grid: &mut [[u8; W]; H]) -> usize {
             (x.checked_sub(1), Some(y + 1)),
             (x.checked_sub(1), Some(y)),
             (x.checked_sub(1), y.checked_sub(1)),
-        ];
+        ]
+        .into_iter()
+        .filter_map(|(x, y)| Some((x?, y?)));
 
-        for n in neighbors {
-            let (nx, ny, nv) = match n {
-                (Some(x), Some(y)) => {
-                    if let Some(v) = grid.get_mut(y).and_then(|row| row.get_mut(x)) {
-                        (x, y, v)
-                    } else {
-                        continue;
-                    }
+        for (nx, ny) in neighbors {
+            if let Some(nv) = grid.get_mut(ny).and_then(|row| row.get_mut(nx)) {
+                *nv += 1;
+                if *nv == 10 {
+                    will_flash.push_back((nx, ny));
                 }
-                _ => continue,
-            };
-            *nv += 1;
-            if *nv == 10 {
-                will_flash.push_back((nx, ny));
             }
         }
 
