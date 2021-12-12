@@ -75,29 +75,22 @@ fn part_b(connections: &HashMap<Cave, HashSet<Cave>>) -> usize {
 }
 
 fn parse_connections<S: AsRef<str>>(lines: &[S]) -> Result<HashMap<Cave, HashSet<Cave>>> {
-    lines
-        .iter()
-        .map(|line| -> Result<(Cave, Cave)> {
-            let (a, b) = line.as_ref().split_once("-").ok_or_else(|| {
-                anyhow!(
-                    "Line {:?} doesn't seem to be a cave connection",
-                    line.as_ref()
-                )
-            })?;
-            Ok((a.parse()?, b.parse()?))
-        })
-        .try_fold(
-            HashMap::new(),
-            |mut connections, connection_result| -> Result<_> {
-                let (a, b) = connection_result?;
-                connections
-                    .entry(a.clone())
-                    .or_insert_with(HashSet::new)
-                    .insert(b.clone());
-                connections.entry(b).or_insert_with(HashSet::new).insert(a);
-                Ok(connections)
-            },
-        )
+    lines.iter().try_fold(
+        HashMap::new(),
+        |mut connections, line| -> Result<HashMap<Cave, HashSet<Cave>>> {
+            let (a, b): (Cave, Cave) = line
+                .as_ref()
+                .split_once("-")
+                .ok_or_else(|| anyhow!("{:?} is not a valid cave connection", line.as_ref()))
+                .and_then(|(a, b)| Ok((a.parse()?, b.parse()?)))?;
+            connections
+                .entry(a.clone())
+                .or_insert_with(HashSet::new)
+                .insert(b.clone());
+            connections.entry(b).or_insert_with(HashSet::new).insert(a);
+            Ok(connections)
+        },
+    )
 }
 
 pub fn main(path: &Path) -> Result<(usize, Option<usize>)> {
@@ -105,7 +98,6 @@ pub fn main(path: &Path) -> Result<(usize, Option<usize>)> {
         .lines()
         .collect::<Result<Vec<_>, _>>()?;
     let paths = parse_connections(&lines)?;
-
     Ok((part_a(&paths), Some(part_b(&paths))))
 }
 
