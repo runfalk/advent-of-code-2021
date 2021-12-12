@@ -13,12 +13,6 @@ enum Cave {
     Large(String),
 }
 
-impl Cave {
-    fn is_large(&self) -> bool {
-        matches!(self, Self::Large(_))
-    }
-}
-
 impl FromStr for Cave {
     type Err = AnyhowError;
 
@@ -33,86 +27,54 @@ impl FromStr for Cave {
     }
 }
 
-trait VisitTracker: Clone {
-    fn visit(&mut self, cave: &Cave);
-    fn can_visit(&self, cave: &Cave) -> bool;
-}
-
-#[derive(Debug, Clone, Default)]
-struct VisitSmallCavesOnce {
-    visited: HashSet<Cave>,
-}
-
-#[derive(Debug, Clone, Default)]
-struct VisitOneSmallCaveTwice {
-    visited: HashSet<Cave>,
-    second_visit: bool,
-}
-
-impl VisitTracker for VisitSmallCavesOnce {
-    fn visit(&mut self, cave: &Cave) {
-        if !self.visited.insert(cave.clone()) && !cave.is_large() {
-            // We panic here since it's an implementation error rather than something that can be
-            // triggered by user input
-            panic!("Tried to visit cave {:?} twice", cave);
-        }
-    }
-
-    fn can_visit(&self, cave: &Cave) -> bool {
-        cave != &Cave::Start && (cave.is_large() || !self.visited.contains(cave))
-    }
-}
-
-impl VisitTracker for VisitOneSmallCaveTwice {
-    fn visit(&mut self, cave: &Cave) {
-        if cave.is_large() || self.visited.insert(cave.clone()) {
-            return;
-        }
-
-        if cave == &Cave::Start || self.second_visit {
-            // We panic here since it's an implementation error rather than something that can be
-            // triggered by user input
-            panic!("Tried to visit cave {:?} twice", cave);
-        }
-
-        self.second_visit = true;
-    }
-
-    fn can_visit(&self, cave: &Cave) -> bool {
-        cave != &Cave::Start
-            && (cave.is_large() || !self.visited.contains(cave) || !self.second_visit)
-    }
-}
-
-fn num_paths<T: VisitTracker>(
-    paths: &HashMap<Cave, HashSet<Cave>>,
-    mut visit_tracker: T,
+fn num_paths<T: Clone + FnMut(&Cave) -> bool>(
+    connections: &HashMap<Cave, HashSet<Cave>>,
+    try_visit: T,
     start: &Cave,
 ) -> usize {
     if start == &Cave::End {
         return 1;
     }
-    visit_tracker.visit(start);
 
-    let mut count = 0;
-    for next_cave in &paths[start] {
-        if !visit_tracker.can_visit(next_cave) {
-            continue;
+    connections[start]
+        .iter()
+        .zip(std::iter::repeat(try_visit))
+        .filter_map(|(next_cave, mut try_visit)| {
+            if try_visit(next_cave) {
+                Some(num_paths(connections, try_visit, next_cave))
+            } else {
+                None
+            }
+        })
+        .sum()
+}
+
+fn part_a(connections: &HashMap<Cave, HashSet<Cave>>) -> usize {
+    let mut visited = HashSet::new();
+    visited.insert(Cave::Start);
+    let tracker = move |cave: &Cave| matches!(cave, Cave::Large(_)) || visited.insert(cave.clone());
+    num_paths(connections, tracker, &Cave::Start)
+}
+
+fn part_b(connections: &HashMap<Cave, HashSet<Cave>>) -> usize {
+    let mut second_visit = false;
+    let mut visited = HashSet::new();
+    visited.insert(Cave::Start);
+    let tracker = move |cave: &Cave| {
+        if matches!(cave, Cave::Large(_)) || visited.insert(cave.clone()) {
+            return true;
         }
-        count += num_paths(paths, visit_tracker.clone(), next_cave);
-    }
-    count
+
+        if cave == &Cave::Start || second_visit {
+            return false;
+        }
+        second_visit = true;
+        true
+    };
+    num_paths(connections, tracker, &Cave::Start)
 }
 
-fn part_a(paths: &HashMap<Cave, HashSet<Cave>>) -> usize {
-    num_paths(paths, VisitSmallCavesOnce::default(), &Cave::Start)
-}
-
-fn part_b(paths: &HashMap<Cave, HashSet<Cave>>) -> usize {
-    num_paths(paths, VisitOneSmallCaveTwice::default(), &Cave::Start)
-}
-
-fn parse_paths<S: AsRef<str>>(lines: &[S]) -> Result<HashMap<Cave, HashSet<Cave>>> {
+fn parse_connections<S: AsRef<str>>(lines: &[S]) -> Result<HashMap<Cave, HashSet<Cave>>> {
     lines
         .iter()
         .map(|line| -> Result<(Cave, Cave)> {
@@ -124,23 +86,25 @@ fn parse_paths<S: AsRef<str>>(lines: &[S]) -> Result<HashMap<Cave, HashSet<Cave>
             })?;
             Ok((a.parse()?, b.parse()?))
         })
-        .try_fold(HashMap::new(), |mut paths, cave_res| -> Result<_> {
-            let (a, b) = cave_res?;
-            paths
-                .entry(a.clone())
-                .or_insert_with(HashSet::new)
-                .insert(b.clone());
-            paths.entry(b).or_insert_with(HashSet::new).insert(a);
-            Ok(paths)
-        })
+        .try_fold(
+            HashMap::new(),
+            |mut connections, connection_result| -> Result<_> {
+                let (a, b) = connection_result?;
+                connections
+                    .entry(a.clone())
+                    .or_insert_with(HashSet::new)
+                    .insert(b.clone());
+                connections.entry(b).or_insert_with(HashSet::new).insert(a);
+                Ok(connections)
+            },
+        )
 }
 
 pub fn main(path: &Path) -> Result<(usize, Option<usize>)> {
-    let file = File::open(path)?;
-    let lines = io::BufReader::new(file)
+    let lines = io::BufReader::new(File::open(path)?)
         .lines()
         .collect::<Result<Vec<_>, _>>()?;
-    let paths = parse_paths(&lines)?;
+    let paths = parse_connections(&lines)?;
 
     Ok((part_a(&paths), Some(part_b(&paths))))
 }
@@ -159,15 +123,15 @@ mod tests {
 
     #[test]
     fn test_part_a() -> Result<()> {
-        assert_eq!(part_a(&parse_paths(EXAMPLE1)?), 10);
-        assert_eq!(part_a(&parse_paths(EXAMPLE2)?), 226);
+        assert_eq!(part_a(&parse_connections(EXAMPLE1)?), 10);
+        assert_eq!(part_a(&parse_connections(EXAMPLE2)?), 226);
         Ok(())
     }
 
     #[test]
     fn test_part_b() -> Result<()> {
-        assert_eq!(part_b(&parse_paths(EXAMPLE1)?), 36);
-        assert_eq!(part_b(&parse_paths(EXAMPLE2)?), 3509);
+        assert_eq!(part_b(&parse_connections(EXAMPLE1)?), 36);
+        assert_eq!(part_b(&parse_connections(EXAMPLE2)?), 3509);
         Ok(())
     }
 }
