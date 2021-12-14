@@ -77,17 +77,3 @@ pub fn main(path: &Path) -> Result<(usize, Option<String>)> {
 
     Ok((a.unwrap(), Some(b)))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_example() -> Result<()> {
-        let mut input = vec![16, 1, 2, 0, 4, 2, 7, 1, 2, 14];
-        input.sort_unstable();
-        assert_eq!(part_a(&input), 37);
-        assert_eq!(part_b(&input), 168);
-        Ok(())
-    }
-}
