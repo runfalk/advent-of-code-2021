@@ -186,27 +186,9 @@ fn part_b(packet: &Packet) -> u128 {
         PacketType::Minimum(sp) => sp.iter().map(part_b).min().unwrap(),
         PacketType::Maximum(sp) => sp.iter().map(part_b).max().unwrap(),
         PacketType::Literal(VarInt(v)) => *v,
-        PacketType::GreaterThan(op) => {
-            if part_b(&op.0) > part_b(&op.1) {
-                1
-            } else {
-                0
-            }
-        }
-        PacketType::LessThan(op) => {
-            if part_b(&op.0) < part_b(&op.1) {
-                1
-            } else {
-                0
-            }
-        }
-        PacketType::EqualTo(op) => {
-            if part_b(&op.0) == part_b(&op.1) {
-                1
-            } else {
-                0
-            }
-        }
+        PacketType::GreaterThan(op) => (part_b(&op.0) > part_b(&op.1)) as u128,
+        PacketType::LessThan(op) => (part_b(&op.0) < part_b(&op.1)) as u128,
+        PacketType::EqualTo(op) => (part_b(&op.0) == part_b(&op.1)) as u128,
     }
 }
 
