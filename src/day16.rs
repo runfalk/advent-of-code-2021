@@ -8,20 +8,10 @@ use nom::multi::{length_count, many0, many1};
 use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::IResult;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct Coordinate {
-    x: isize,
-    y: isize,
-}
-
 fn from_hex(c: char) -> Result<u8> {
     c.to_digit(16)
         .map(|b| b as u8)
         .ok_or_else(|| anyhow!("{} is not a valid hex character", c))
-}
-
-fn decode_bool(input: (&[u8], usize)) -> IResult<(&[u8], usize), bool> {
-    map(take(1usize), |b: u8| b != 0)(input)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,13 +21,14 @@ impl VarInt {
     fn decode_bits(mut input: (&[u8], usize)) -> IResult<(&[u8], usize), Self> {
         let mut out = 0;
         loop {
-            let (i, (has_more, num)): (_, (bool, u128)) = pair(decode_bool, take(4usize))(input)?;
+            let (i, is_last) = map(take(1usize), |b: u8| b == 0)(input)?;
+            let (i, half_byte): (_, u128) = take(4usize)(i)?;
             input = i;
 
             out <<= 4;
-            out |= num;
+            out |= half_byte;
 
-            if !has_more {
+            if is_last {
                 break;
             }
         }
