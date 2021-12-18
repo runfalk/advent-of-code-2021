@@ -3,7 +3,7 @@ use regex::Regex;
 use std::ops::RangeInclusive;
 use std::path::Path;
 
-fn iter_x(mut acc: isize) -> impl Clone + Iterator<Item = isize> {
+fn iter_x(mut acc: isize) -> impl Iterator<Item = isize> {
     let mut pos = 0isize;
     std::iter::repeat_with(move || {
         pos += acc;
@@ -12,21 +12,6 @@ fn iter_x(mut acc: isize) -> impl Clone + Iterator<Item = isize> {
         }
         pos
     })
-}
-
-fn iter_x_terminated(acc: isize) -> impl Iterator<Item = isize> {
-    // This awkwardness exists because we don't have a .take_while_inclusive()
-    let mut terminate_next = false;
-    iter_x(acc)
-        .zip(iter_x(acc).skip(1))
-        .take_while(move |(c, n)| {
-            let should_continue = !terminate_next;
-            if c == n {
-                terminate_next = true;
-            }
-            should_continue
-        })
-        .map(|(x, _)| x)
 }
 
 fn iter_y(mut acc: isize, min_y: isize) -> impl Iterator<Item = isize> {
@@ -53,32 +38,14 @@ fn part_a(min_y: isize) -> isize {
 
 // This doesn't generalize to targets above Y: 0 or X < 0
 fn part_b(target_x: &RangeInclusive<isize>, target_y: &RangeInclusive<isize>) -> usize {
-    let mut x_acc_candidates = Vec::new();
-    for acc in 0..=*target_x.end() {
-        if iter_x_terminated(acc).any(|x| target_x.contains(&x)) {
-            x_acc_candidates.push(acc);
-        }
-    }
-
-    let mut y_acc_candidates = Vec::new();
-    for acc in *target_y.start()..=-*target_y.start() {
-        if iter_y(acc, *target_y.start()).any(|y| target_y.contains(&y)) {
-            y_acc_candidates.push(acc);
-        }
-    }
-
-    let mut num_parabolas = 0;
-    for acc_y in y_acc_candidates {
-        for acc_x in x_acc_candidates.iter().copied() {
-            if iter_x(acc_x)
+    (*target_y.start()..=-*target_y.start())
+        .flat_map(|acc_y| (0..=*target_x.end()).map(move |acc_x| (acc_x, acc_y)))
+        .filter(|&(acc_x, acc_y)| {
+            iter_x(acc_x)
                 .zip(iter_y(acc_y, *target_y.start()))
                 .any(|(x, y)| target_x.contains(&x) && target_y.contains(&y))
-            {
-                num_parabolas += 1;
-            }
-        }
-    }
-    num_parabolas
+        })
+        .count()
 }
 
 pub fn main(path: &Path) -> Result<(isize, Option<usize>)> {
