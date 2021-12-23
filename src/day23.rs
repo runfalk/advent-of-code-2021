@@ -230,14 +230,15 @@ fn part_a(burrow: Burrow) -> Option<usize> {
     let mut queue = PriorityQueue::new();
     let mut visited = HashSet::new();
     queue.push(burrow.clone(), Reverse(0usize));
-    visited.insert(burrow);
 
     while let Some((burrow, Reverse(energy))) = queue.pop() {
         println!("{}{}\n", &burrow, energy);
         if burrow == target {
             return Some(energy);
         }
-        visited.insert(burrow.clone());
+        if !visited.insert(burrow.clone()) {
+            continue;
+        }
 
         // Find all amphipods and explore what paths they can take
         for (x, y, amphipod) in burrow.find_amphipods() {
