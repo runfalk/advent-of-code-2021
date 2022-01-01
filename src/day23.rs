@@ -229,7 +229,7 @@ fn part_a(burrow: Burrow) -> Option<usize> {
     // We use this exotic priority queue instead of binary heap since Burrow can't implement Ord
     let mut queue = PriorityQueue::new();
     let mut visited = HashSet::new();
-    queue.push(burrow.clone(), Reverse(0usize));
+    queue.push(burrow, Reverse(0usize));
 
     while let Some((burrow, Reverse(energy))) = queue.pop() {
         println!("{}{}\n", &burrow, energy);

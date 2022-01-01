@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt)]
+#[derive(Debug, Parser)]
 struct Options {
     /// The day to run the solution for (1-25)
     day: usize,
@@ -20,7 +20,7 @@ fn as_result<A: ToString, B: ToString>((a, b): (A, Option<B>)) -> (String, Optio
 }
 
 fn main() -> Result<()> {
-    let opts = Options::from_args();
+    let opts = Options::parse();
     let input = opts
         .input
         .unwrap_or_else(|| format!("data/day{}.txt", opts.day).into());
